@@ -1,35 +1,84 @@
-#include "PositiveTable.hpp"
-#include <iostream>
-#include "FilterFunctions.hpp"
 #include <algorithm>
-#include <unordered_set>
-#include <string>
 #include <cmath>
+#include <iostream>
+#include <string>
+#include <unordered_set>
+#include <set>
+#include "PositiveTable.hpp"
+#include "FilterFunctions.hpp"
+#include "Print.hpp"
+#include <optional>
 
-StringTable_t CapstoneGroupCalc::Generate::Positive::Table(StringTable_t& Names, StringTable_t& Rules, uint64_t& MinGroupSize)
+extern bool isVerbose;
+
+std::optional<StringList_t> HasNamesFromLargeLists(const StringList_t& List, const GroupConstraints& Constraints)
 {
-    std::cout << " GeneratePositiveTable " << std::endl;
-    StringTable_t newTable = Names;
+    std::vector<uint64_t> NameCounts;
+    StringList_t BigRuleUsed;
 
-    for (const auto Rule : Rules)
+    for(const auto& LargeRule : Constraints.LargePositiveRules)
     {
-        StringTable_t tempTable;
-        for (auto list : newTable)
+        uint64_t count;
+        for(const auto& Name : LargeRule)
         {
-            tempTable.push_back(List(list, Rule, MinGroupSize));
+            if(std::find(List.begin(),List.end(),Name) != List.end())
+            {
+                count++;
+            }
         }
 
-        if(Rule.size() >= MinGroupSize)
+        if(count == Constraints.MaxGroupSize)
         {
-            tempTable.push_back(Rule);
+            BigRuleUsed = LargeRule;
         }
+        NameCounts.push_back(count);
+    }
+
+    for(const auto& Counts : NameCounts)
+    {
+        if(Counts == 0) return std::nullopt;
+    }
+    
+    return BigRuleUsed;
+}
+
+
+StringTable_t CapstoneGroupCalc::Generate::Positive::Table(const StringTable_t& Names, const StringTable_t& Rules, const GroupConstraints& Constraints)
+{
+    if(isVerbose) std::cout << "GeneratePositiveTable " << std::endl;
+
+    StringTable_t newTable = Names;
+    StringTable_t tempTable;
+    std::unordered_set<StringList_t> uniqueLists;
+
+    for (const auto& Rule : Rules) // Pass Rule by reference
+    {        
+        for (auto& list : newTable) // Pass list by reference
+        {
+            auto templist = List(list, Rule, Constraints.MinGroupSize);
+
+            // Check if the list is too small to be a group and that no other list
+            if(!HasNamesFromLargeLists(list,Constraints)) continue;
+            if (templist.size() >= Constraints.MinGroupSize && uniqueLists.find(templist) == uniqueLists.end()) // Knocks off 4 secs
+            {
+                if (isVerbose) {
+                    Print::Names(templist);
+                    std::cout << std::endl;
+                }
+                tempTable.push_back(templist);
+                uniqueLists.insert(templist);
+            }
+        }
+
+        //Noah this is recursive and thus just uses the new table as the new input for the for loop
+        uniqueLists.clear();
+        newTable.clear();
         newTable = std::move(tempTable);
     }
     
-    newTable = Filter::rmListsTooSmall(newTable,MinGroupSize);
-    Filter::OutDuplicates(newTable);
     return newTable;
 }
+
 
 StringList_t CapstoneGroupCalc::Generate::Positive::List(StringList_t Names, StringList_t Rule, uint64_t MinGroupSize) {
     
@@ -61,30 +110,23 @@ StringList_t CapstoneGroupCalc::Generate::Positive::List(StringList_t Names, Str
     return NamesThatDONTfollowRules;
 }
 
-StringTable_t CapstoneGroupCalc::Generate::FilteredGroupTable(StringTable_t Names, StringTable_t negativeRules, StringTable_t positiveRules, StringList_t Leaders, uint64_t MinGroupSize)
+StringTable_t CapstoneGroupCalc::Generate::FilteredGroupTable(const StringTable_t& Names, const StringTable_t& negativeRules, const StringTable_t& positiveRules, const GroupConstraints& Constraints)
 {
-    std::cout << " Generating Filtered Group Table " << std::endl;
-
     auto Table = Names;
-    std::cout << " Generating Lists With Negative Rule Sets " << std::endl;
     for (auto RuleSet : negativeRules){
         Table = CapstoneGroupCalc::Generate::Negative::Table(Table, RuleSet);
     }
 
-    // Print::Names(Table);
-    Table = CapstoneGroupCalc::Generate::Positive::Table(Table,positiveRules, MinGroupSize); 
+    Table = CapstoneGroupCalc::Generate::Positive::Table(Table, positiveRules, Constraints); 
 
-    Filter::OutDuplicates(Table);
-
-    Filter::OutLeaderlessLists(Table,Leaders);
     return Table;
 }
 
 
-StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(StringList_t List)
+StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(const StringList_t& List, const GroupConstraints& constraints)
 {
     std::vector<bool> select(List.size(), false);
-    std::fill(select.begin(), select.begin() + 4, true);
+    std::fill(select.begin(), select.begin() + constraints.MinGroupSize, true);
 
     StringTable_t variations;
 
@@ -95,77 +137,78 @@ StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(StringList_t L
                 group.push_back(List[i]);
             }
         }
-        variations.push_back(group);
+
+        // Check if the group is valid based on the large list constraints.
+        auto PossibleNewGroup = HasNamesFromLargeLists(group, constraints);
+
+
+        variations.push_back(group);  // Otherwise, push back the current group.
+
+
+    // Generate the next combination.
     } while (std::prev_permutation(select.begin(), select.end()));
+
+    // Sort the resulting variations lexicographically.
+    std::sort(variations.begin(), variations.end());
+
     return variations;
 }
 
-StringMatrix_t CapstoneGroupCalc::Generate::PossibleConfigurations(StringTable_t List, uint64_t& MaxNumberofGroups) {
-    std::vector<bool> select(List.size(), false);
-    std::fill(select.begin(), select.begin() + MaxNumberofGroups, true);
 
-    StringMatrix_t variations;
-
-    do {
-        StringTable_t group;
-        for (int i = 0; i < List.size(); ++i) {
-            if (select[i]) {
-                group.push_back(List[i]);
-            }
-        }
-        variations.push_back(group);
-    } while (std::prev_permutation(select.begin(), select.end()));
+StringMatrix_t CapstoneGroupCalc::Generate::PossibleMatrixConfigurations(const StringTable_t& Table, const GroupConstraints& Constraints) {
+    // Initialize a vector of booleans for selecting groups
+    if(isVerbose) std::cout << " Generate Possible Configurations " << std::endl;
+    std::vector<bool> select(Table.size(), false);
+    std::fill(select.begin(), select.begin() + Constraints.NumGroup, true);
 
     StringMatrix_t LegalVariations;
 
-    for (const auto& Table : variations) {
-        StringList_t TempList;
-        for (const auto& Group : Table) {
-            TempList.insert(TempList.end(), Group.begin(), Group.end());
+    do {
+        StringTable_t group;
+        std::unordered_set<std::string> uniqueNames;
+        bool hasDuplicates = false;
+
+        for (int i = 0; i < Table.size(); ++i) {
+            if (select[i]) {
+                for (const auto& name : Table[i]) {
+                    if (!uniqueNames.insert(name).second) {
+                        hasDuplicates = true;
+                        break;
+                    }
+                }
+                if (hasDuplicates) break;
+                group.push_back(Table[i]);
+            }
         }
 
-        // Check for duplicates by using an unordered_set
-        std::unordered_set<std::string> uniqueNames(TempList.begin(), TempList.end());
-
-        // If no duplicates were removed, the set size should match the TempList size
-        if (uniqueNames.size() == TempList.size()) {
-            LegalVariations.push_back(Table);
+        if (!hasDuplicates ) {
+            LegalVariations.push_back(group);
         }
-    }
+    } while (std::prev_permutation(select.begin(), select.end()));
+
 
     return LegalVariations;
 }
 
 
-StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(StringTable_t& Table, StringList_t PeopleInLargePositiveGroups) {
-    std::cout << " Generate Possible Configurations " << std::endl;
+
+// Ensure the table is not const if modifications are expected
+StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(const StringTable_t& Table, const GroupConstraints& Constraints) {
+    // Generate new table based on configurations
     StringTable_t NewTable;
-    
+
     for (auto& List : Table) {
-        // Check if any name in List is in PeopleInLargePositiveGroups
-        bool ShouldIgnoreList = std::any_of(List.begin(), List.end(), [&](const std::string& Name) {
-            return std::find(PeopleInLargePositiveGroups.begin(), 
-                             PeopleInLargePositiveGroups.end(), 
-                             Name) != PeopleInLargePositiveGroups.end();
-        });
-
-        // If the list should be ignored, skip to the next one
-        if (ShouldIgnoreList)
-        {
-            NewTable.push_back(List);
-            continue;
+        // Ensure non-const strings for modification
+        if (Constraints.LargePositiveRulesHashes.find(List) == Constraints.LargePositiveRulesHashes.end()) {
+            StringTable_t tempTable = Generate::PossibleConfigurations(List, Constraints);
+            NewTable.insert(NewTable.end(), tempTable.begin(), tempTable.end());
         }
-
-        // Generate configurations for the current List (recursive call)
-        StringTable_t tempTable = Generate::PossibleConfigurations(List);
-        NewTable.insert(NewTable.end(), tempTable.begin(), tempTable.end());
     }
-
-    // Remove duplicates from the final table
-    Filter::OutDuplicates(NewTable);
-
+    NewTable = Positive::Table(NewTable, Constraints.JoinRules, Constraints);
     return NewTable;
 }
+
+
 
 StringTable_t CapstoneGroupCalc::Generate::Negative::Table(StringTable_t NameTable, StringList_t RuleSet)
 {
@@ -204,7 +247,7 @@ StringList_t CapstoneGroupCalc::Generate::Negative::InverseList(StringList_t Nam
 
     FilteredRules = Filter::NamesFromRules(NameList, RuleSet);
 
-    if (FilteredRules.size() < 1)
+    if (FilteredRules.empty())
     {
         return NameList;
     }
@@ -222,7 +265,7 @@ StringList_t CapstoneGroupCalc::Generate::Negative::InverseList(StringList_t Nam
 
 StringList_t CapstoneGroupCalc::Generate::InitializePeopleInLargeGroups(StringTable_t PositiveRuleSets, uint64_t MinGroupSize)
 {
-    std::cout << " Initializing People In Large Groups " << std::endl;
+    if(isVerbose) std::cout << " Initializing People In Large Groups " << std::endl;
     StringList_t PeopleInLargePositiveGroups;
 
     for(auto& Rule : PositiveRuleSets)

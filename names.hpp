@@ -45,7 +45,7 @@ namespace names
         James, Jon, Loepp, Kobe, Ethan
     };
 
-    const std::vector<std::vector<std::string>> NegativeRules = {
+    const std::vector<std::vector<std::string>> SplitRules = {
         Leaders,
         {Case, Evan, Jayde, Kobe},
         {Dylan, Ethan, Lane},
@@ -59,19 +59,13 @@ namespace names
     };
     
 
-    const std::vector<std::vector<std::string>> PositiveRules = {
-        {Ethan, Andon, Daniel, Grant, Neil,},
+    const std::vector<std::vector<std::string>> JoinRules = {
+        {Ethan, Andon, Daniel, Neil},
+        {Jon, Dylan, Noah},
         {James, Evan},
-        {Jon,Dylan,Noah},
-        {Loepp, Bryan, Lane},
+        {Loepp, Bryan, Lane, Zach, Jayde},
         //Maybe Rules
 
         
     };
-    
-
-    const size_t MaxGroupSize = static_cast<size_t>(std::ceil(std::sqrt(InstrumentationNames[0].size())));
-    const size_t MinGroupSize = static_cast<size_t>(std::floor(std::sqrt(InstrumentationNames[0].size())));
-    const size_t MaxGroups = static_cast<size_t>(std::ceil(std::sqrt(InstrumentationNames[0].size())));
-
 } // namespace names

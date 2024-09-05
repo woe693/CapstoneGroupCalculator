@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <vector>
 #include <iostream>
+extern bool isVerbose;
 
 StringTable_t Filter::rmListsTooSmall(StringTable_t Names, uint64_t MinGroupSize)
 {
@@ -23,7 +24,7 @@ StringTable_t Filter::OutDuplicates(StringTable_t& Table)
     {
         OutDuplicates(List);
     }
-    std::cout << std::endl << "Removing Duplicates " << std::endl;
+    if(isVerbose) std::cout << std::endl << "Removing Duplicates " << std::endl;
 
     std::sort(Table.begin(), Table.end()); 
     auto it = std::unique(Table.begin(), Table.end()); 

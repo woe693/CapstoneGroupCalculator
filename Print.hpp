@@ -10,7 +10,7 @@
 
 namespace Print {
 
-void Names(const StringList_t& List) {
+inline void Names(const StringList_t& List) {
     for(const auto& Name : List)
     {
         std::cout << Name << " ";
@@ -18,22 +18,20 @@ void Names(const StringList_t& List) {
     // std::cout << std::endl;
 }
 
-void Names(const StringTable_t& Table) {
+inline void Names(const StringTable_t& Table) {
     std::cout << std::endl;
     for (const auto& List : Table) {
         Names(List);
         std::cout << std::endl;
     }
-    std::cout << "Generated " << Table.size() << " Lists Of Variations Of People Who Can Be In A Group Together" << std::endl;
-    std::cout << std::endl;
 }
 
-void Names(const StringMatrix_t& Matrix) {
+inline void Names(const StringMatrix_t& Matrix) {
 
     for(StringTable_t GroupTable : Matrix)
     {
         std::cout << std::endl;
-        for (const auto& List : GroupTable) {
+        for (auto List : GroupTable) {
             Names(List);
             std::cout << std::endl;
         }
@@ -45,7 +43,7 @@ void Names(const StringMatrix_t& Matrix) {
 }
 
 // Function to count and print the number of times each person occurs in the table
-void NameCount(const StringList_t& Names, const StringTable_t& Table) {
+inline void NameCount(const StringList_t& Names, const StringTable_t& Table) {
     std::map<std::string, uint16_t> CountofNames;
 
     // Initialize the map with each name set to 0
