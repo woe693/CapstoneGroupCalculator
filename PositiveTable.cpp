@@ -144,6 +144,10 @@ StringTable_t CapstoneGroupCalc::Generate::PossibleConfigurations(const StringLi
 
         variations.push_back(group);  // Otherwise, push back the current group.
 
+        if(isVerbose)
+        {
+            Print::Names(group);
+        }
 
     // Generate the next combination.
     } while (std::prev_permutation(select.begin(), select.end()));
@@ -176,13 +180,19 @@ StringMatrix_t CapstoneGroupCalc::Generate::PossibleMatrixConfigurations(const S
                         break;
                     }
                 }
+                // if(isVerbose) // lol this takes forever
+                // {
+                //     Print::Names(Table[i]);
+                // }
                 if (hasDuplicates) break;
                 group.push_back(Table[i]);
             }
         }
 
+
         if (!hasDuplicates ) {
             LegalVariations.push_back(group);
+
         }
     } while (std::prev_permutation(select.begin(), select.end()));
 
@@ -233,6 +243,11 @@ StringTable_t CapstoneGroupCalc::Generate::Negative::Table(StringList_t NameList
         NewList.push_back(RuleName);
         std::sort(NewList.begin(), NewList.end());
         NewTable.push_back(NewList);
+
+        if(isVerbose)
+        {
+            Print::Names(NewList);
+        }
     }
 
     NewTable.push_back(InverseList(NameList, FilteredRules));
